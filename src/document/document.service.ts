@@ -2,8 +2,10 @@ import { Injectable } from '@nestjs/common';
 import { AiService } from 'src/ai/ai.service';
 import { SupabaseService } from 'src/supabase/supabase.service';
 import { chunker } from 'src/utils/chunker';
+import { mmr } from 'src/utils/mmr';
 import { preprocess } from 'src/utils/preprocess';
 import { semanticChunker } from 'src/utils/semantic-chunker';
+import { ScoredChunk } from 'src/utils/types';
 const PDFParser = require('pdf2json');
 @Injectable()
 export class DocumentService {
@@ -78,27 +80,20 @@ export class DocumentService {
         const similarKeywordChunks = await this.supabaseService.keywordSearch(question, documentId);
 
         // 4. merge both chunks using a map
-        const map = new Map<number, {
-            content: string;
-            similarity: number;
-            rank: number;
-            chunk_index: number;
-            char_count: number;
-            section_heading: string | null;
-        }>();
+        const map = new Map<number, Omit<ScoredChunk, 'finalScore'>>();
 
         for (let chunk of similarChunks) {
-            map.set(chunk.id, { content: chunk.content, similarity: chunk.similarity, rank: 0, chunk_index: chunk.chunk_index, char_count: chunk.char_count, section_heading: chunk.section_heading })
+            map.set(chunk.id, { id: chunk.id, content: chunk.content, embedding: chunk.embedding, similarity: chunk.similarity, rank: 0, chunk_index: chunk.chunk_index, char_count: chunk.char_count, section_heading: chunk.section_heading })
         }
         for (let chunk of similarKeywordChunks) {
             if (map.has(chunk.id)) {
                 const existing = map.get(chunk.id);
                 if (existing) {
-                    map.set(chunk.id, { ...existing, similarity: existing.similarity, rank: chunk.rank })
+                    map.set(chunk.id, { ...existing, rank: chunk.rank })
                 }
             }
             else {
-                map.set(chunk.id, { content: chunk.content, similarity: 0, rank: chunk.rank, chunk_index: chunk.chunk_index, char_count: chunk.char_count, section_heading: chunk.section_heading })
+                map.set(chunk.id, { id: chunk.id, content: chunk.content, embedding: chunk.embedding, similarity: 0, rank: chunk.rank, chunk_index: chunk.chunk_index, char_count: chunk.char_count, section_heading: chunk.section_heading })
             }
         }
 
@@ -110,7 +105,7 @@ export class DocumentService {
         const minRank = Math.min(...mergedChunksArray.map(chunk => chunk.rank))
         const maxRank = Math.max(...mergedChunksArray.map(chunk => chunk.rank))
 
-        const normalizeScore = (score, metric) => {
+        const normalizeScore = (score: number, metric: string) => {
             if (metric === 'similarity') {
                 if (maxSimilarity - minSimilarity === 0) {
                     return 0;
@@ -127,17 +122,25 @@ export class DocumentService {
             }
         }
 
+        // chunks with complete normalised values
         mergedChunksArray = mergedChunksArray.map((chunk) => { return { ...chunk, similarity: normalizeScore(chunk.similarity, 'similarity'), rank: normalizeScore(chunk.rank, 'rank') } });
 
         // 6. FINAL SCORE COMBINING BOTH SCORES USING WEIGHING FACTOR ALPHA, AND TAKING TOP 5 CHUNKS 
         const alpha = 0.7;
 
+        // const topChunks: ScoredChunk[] = mergedChunksArray.map(chunk => {
+        //     const finalScore = (alpha * chunk.similarity) + ((1 - alpha) * chunk.rank);
+        //     return { ...chunk, finalScore: finalScore };
+        // }).sort((a, b) => b.finalScore - a.finalScore).slice(0, 5);
 
-        const topChunks = mergedChunksArray.map(chunk => {
+
+        //6. FINAL SCORE COMBINING BOTH SCORES USING WEIGHING FACTOR ALPHA, TAKE TOP 5 AFTER MMR MAXIMAL MARGINAL RETRIEVAL AFTER HYBRID SEARCH
+        const lambda = 0.7;
+
+        const topChunks: ScoredChunk[] = mmr(mergedChunksArray.map(chunk => {
             const finalScore = (alpha * chunk.similarity) + ((1 - alpha) * chunk.rank);
             return { ...chunk, finalScore: finalScore };
-        }).sort((a, b) => b.finalScore - a.finalScore).slice(0, 5);
-
+        }), lambda);
 
 
         const sources = topChunks.map(chunk => {

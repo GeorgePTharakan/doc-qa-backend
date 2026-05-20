@@ -32,7 +32,7 @@ export class SupabaseService {
     }
 
     //3. SIMILARITY SEARCH FUNCTION 
-    async similaritySearch(vectorEmbedding: number[], documentId: string): Promise<{ id: number, content: string, similarity: number, chunk_index: number, char_count: number, section_heading: string | null }[]> {
+    async similaritySearch(vectorEmbedding: number[], documentId: string): Promise<{ id: number, content: string, embedding: number[], similarity: number, chunk_index: number, char_count: number, section_heading: string | null }[]> {
         const result = await this.supabase.rpc('match_chunks', {
             query_embedding: vectorEmbedding,
             match_document_id: documentId,
@@ -43,7 +43,7 @@ export class SupabaseService {
         return result.data;
     }
 
-    async keywordSearch(queryText: string, documentId: string): Promise<{ id: number, content: string, rank: number, chunk_index: number, char_count: number, section_heading: string | null }[]> {
+    async keywordSearch(queryText: string, documentId: string): Promise<{ id: number, content: string, embedding: number[], rank: number, chunk_index: number, char_count: number, section_heading: string | null }[]> {
         const result = await this.supabase.rpc('keyword_search_chunks', {
             query_text: queryText,
             match_document_id: documentId,
