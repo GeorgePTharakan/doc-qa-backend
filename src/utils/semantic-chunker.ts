@@ -9,11 +9,26 @@ export const semanticChunker = (document: string, maxWords: number = 500): { chu
     let currentHeading: string | null = null;
 
     for (let paragraph of paragraphs) {
-        //check for currentHeading
-        if (paragraph.startsWith('#')) {
-            currentHeading = paragraph.slice(1).trim();
-            continue;
+        //what if there is no /n/n between heading and paragraphs, then split by
+        // /n/n will make the heading and content in one paragraph, so check each
+        // line in paragraph if heading and content are split by /n then also we 
+        // need to take that 
+        const lines = paragraph.split('\n');
+        if (lines[0].startsWith('#')) {
+            currentHeading = lines[0].replace(/^#+\s+/, '');
+            paragraph = lines.slice(1).join('\n');
+            if (paragraph.trim().length === 0) {
+                continue;
+            }
         }
+
+
+
+        // check for currentHeading
+        // if (paragraph.startsWith('#')) {
+        //     currentHeading = paragraph.slice(1).trim();
+        //     continue;
+        // }
 
         if (paragraph.split(' ').length > maxWords) {
             const sentences = paragraph.split('. ');//sentences ends with '. ' dot and space, and next sentence starts after that space

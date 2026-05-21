@@ -41,4 +41,27 @@ export class AiService {
         console.log('Embedding dimensions:', values.length);
         return values;
     }
+
+    async generateQueries(question: string): Promise<string[]> {
+        const model = this.genAI.getGenerativeModel({
+            model: 'gemini-2.5-flash',
+            systemInstruction: `You are a senior language scholar and a distinguished person with an experience
+                                of more than 15 years.
+                                You will be given a question or text and you should carefully rephrase the given
+                                question into 3 other versions.
+                                And its important that you only return the the 3 versions in JSON format, JSON 
+                                array of strings, that's it , nothing else should be there in the response,
+                                no preamble, no explanation, just the array`,
+            generationConfig: {
+                temperature: 0.7,
+                responseMimeType: 'application/json'
+            },
+        });
+
+        const prompt = `Here is the question which you need to rephrase: 
+                        ${question}`;
+        const result = await model.generateContent(prompt);
+        console.log(result.response.text());
+        return JSON.parse(result.response.text());
+    }
 }
