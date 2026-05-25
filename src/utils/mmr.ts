@@ -36,5 +36,6 @@ export const mmr = (chunks: ScoredChunk[], lambda: number, maxLimit: number = 5)
         //remove that chunk from candidate . splice removes 1 element starting from that index
         candidateList.splice(candidateList.findIndex(chunk => chunk.id === bestChunk?.id), 1);
     }
+
     return selectedList;
 }

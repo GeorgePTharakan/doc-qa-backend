@@ -185,10 +185,11 @@ export class DocumentService {
 
         // MULTI QUERY RETRIEVAL - GENERATE 3 REPHRASED QUESTIONS
         const questions = await this.aiService.generateQueries(question);
-        questions.push(question);
+        questions.push(question); //add the user question to the list , so total 4
 
         //FOR EVERY QUESTION IN QUESTIONS 
         let topChunksFromAllQuestions: ScoredChunk[] = []
+
         for (let query of questions) {
             console.log(query, 'questions')
             // 1. generate embedding for the question
@@ -204,7 +205,7 @@ export class DocumentService {
             const map = new Map<number, Omit<ScoredChunk, 'finalScore'>>();
 
             for (let chunk of similarChunks) {
-                map.set(chunk.id, { id: chunk.id, content: chunk.content, embedding: chunk.embedding, similarity: chunk.similarity, rank: 0, chunk_index: chunk.chunk_index, char_count: chunk.char_count, section_heading: chunk.section_heading })
+                map.set(chunk.id, { id: chunk.id, content: chunk.content, embedding: JSON.parse(chunk.embedding).map(Number), similarity: chunk.similarity, rank: 0, chunk_index: chunk.chunk_index, char_count: chunk.char_count, section_heading: chunk.section_heading })
             }
             for (let chunk of similarKeywordChunks) {
                 if (map.has(chunk.id)) {
@@ -214,7 +215,7 @@ export class DocumentService {
                     }
                 }
                 else {
-                    map.set(chunk.id, { id: chunk.id, content: chunk.content, embedding: chunk.embedding, similarity: 0, rank: chunk.rank, chunk_index: chunk.chunk_index, char_count: chunk.char_count, section_heading: chunk.section_heading })
+                    map.set(chunk.id, { id: chunk.id, content: chunk.content, embedding: JSON.parse(chunk.embedding).map(Number), similarity: 0, rank: chunk.rank, chunk_index: chunk.chunk_index, char_count: chunk.char_count, section_heading: chunk.section_heading })
                 }
             }
 
@@ -261,6 +262,7 @@ export class DocumentService {
                 return { ...chunk, finalScore: finalScore };
             });
 
+            //add to final list containing top chunks for each question
             topChunksFromAllQuestions = [...topChunksFromAllQuestions, ...topChunks];
         }
 
@@ -269,14 +271,17 @@ export class DocumentService {
         for (let chunk of topChunksFromAllQuestions) {
             map.set(chunk.id, chunk);
         }
+        //convert to array
         const topChunksFromAllQuestionsArray = Array.from(map.values());
 
         //  APPLY MMR TO ALL THE MERGED CHUNKS
-        const topChunksAfterMQR = mmr(topChunksFromAllQuestionsArray, lambda)
+        const topChunksAfterMMR = mmr(topChunksFromAllQuestionsArray, lambda)
 
 
+        // RERANK TOP CHUNKS USING RERANKING MODEL
+        const rerankedChunks = await this.aiService.rerank(question, topChunksAfterMMR);
 
-        const sources = topChunksAfterMQR.map(chunk => {
+        const sources = rerankedChunks.map(chunk => {
             return {
                 content: chunk.content,
                 similarity: chunk.similarity,
@@ -287,11 +292,13 @@ export class DocumentService {
                 section_heading: chunk.section_heading
             }
         })
+        console.log('before rerank', topChunksAfterMMR.map(c => c.chunk_index));
+        console.log('after rerank', rerankedChunks.map(c => c.chunk_index));
 
         // 7. combine chunks into one context string
 
         // const contextString = topChunks.map(chunk => chunk.content).join(" ");
-        const contextString = topChunksAfterMQR.map(chunk => chunk.content).join(" ");
+        const contextString = rerankedChunks.map(chunk => chunk.content).join(" ");
 
 
         // 8. call chat with the context and question

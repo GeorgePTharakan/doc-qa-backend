@@ -1,14 +1,21 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { CohereClient } from 'cohere-ai';
+import { ScoredChunk } from 'src/utils/types';
 
 @Injectable()
 export class AiService {
     private genAI: GoogleGenerativeAI;
+    private cohere: CohereClient;
 
     constructor(private config: ConfigService) {
         this.genAI = new GoogleGenerativeAI(
             this.config.get<string>('GEMINI_API_KEY') || '',
+        );
+
+        this.cohere = new CohereClient(
+            { token: this.config.get<string>('COHERE_API_KEY') || '' },
         );
     }
 
@@ -63,5 +70,17 @@ export class AiService {
         const result = await model.generateContent(prompt);
         console.log(result.response.text());
         return JSON.parse(result.response.text());
+    }
+
+    async rerank(question: string, chunks: ScoredChunk[]): Promise<ScoredChunk[]> {
+
+        const response = this.cohere.rerank({
+            model: 'rerank-v3.5',
+            query: question,
+            documents: chunks.map(chunk => chunk.content),
+            topN: 5
+        });
+
+        return (await response).results.map(item => chunks[item.index]);
     }
 }
