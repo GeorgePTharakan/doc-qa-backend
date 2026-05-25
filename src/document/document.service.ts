@@ -292,13 +292,16 @@ export class DocumentService {
                 section_heading: chunk.section_heading
             }
         })
-        console.log('before rerank', topChunksAfterMMR.map(c => c.chunk_index));
-        console.log('after rerank', rerankedChunks.map(c => c.chunk_index));
 
         // 7. combine chunks into one context string
 
+        //before combining into context string , compress each chunk content using llm to extract only relevant sentences from the chunks
+        const relevantSentences = await this.aiService.compressChunks(question, rerankedChunks);
+
         // const contextString = topChunks.map(chunk => chunk.content).join(" ");
-        const contextString = rerankedChunks.map(chunk => chunk.content).join(" ");
+        // const contextString = rerankedChunks.map(chunk => chunk.content).join(" ");  //taking content from each chunk
+        const contextString = relevantSentences.filter(sentence => sentence.trim().length > 0).join(" ");
+        console.log(contextString, "aaa")
 
 
         // 8. call chat with the context and question

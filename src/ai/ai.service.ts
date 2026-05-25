@@ -83,4 +83,32 @@ export class AiService {
 
         return (await response).results.map(item => chunks[item.index]);
     }
+
+    async compressChunks(question: string, chunks: ScoredChunk[]): Promise<string[]> {
+        const model = this.genAI.getGenerativeModel({
+            model: 'gemini-2.5-flash',
+            systemInstruction: `You are a senior chunk compressor and a distinguished person with an experience
+                                of more than 15 years.
+                                You will be given a question or text and an array of content which needs to compressed,
+                                you should carefully extract only those sentences from each chunk or content that are relevant
+                                to the question. If no sentences are relvant , return an empty string for that chunk.
+                                And its important that you only return  in JSON format, JSON 
+                                array of strings, that's it , nothing else should be there in the response,
+                                no preamble, no explanation, just the array`,
+            generationConfig: {
+                temperature: 0.2,
+                responseMimeType: 'application/json'
+            },
+        });
+
+        const prompt = `Here is the question: 
+                        ${question} 
+                        and here is the array of contents you need to compress
+                        ${JSON.stringify(chunks.map(chunk => chunk.content))}`;
+
+        const result = await model.generateContent(prompt);
+
+        console.log(result.response.text());
+        return JSON.parse(result.response.text());
+    }
 }
