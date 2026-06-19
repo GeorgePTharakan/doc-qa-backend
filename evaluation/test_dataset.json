@@ -1,0 +1,10 @@
+[
+    {
+        "question": "how long does standard shipping take?",
+        "ground_truth": "Standard shipping takes 5 to 7 business days."
+    },
+    {
+        "question": "what is the customer support email?",
+        "ground_truth": "The customer support email is support@company.com"
+    }
+]

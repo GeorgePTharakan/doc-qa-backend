@@ -273,6 +273,7 @@ export class DocumentService {
         }
         //convert to array
         const topChunksFromAllQuestionsArray = Array.from(map.values());
+        
 
         //  APPLY MMR TO ALL THE MERGED CHUNKS
         const topChunksAfterMMR = mmr(topChunksFromAllQuestionsArray, lambda)

@@ -8,6 +8,7 @@ import { MulterModule } from '@nestjs/platform-express';
 @Module({
   providers: [DocumentService],
   imports: [AiModule, SupabaseModule,],
+  exports: [DocumentService],
   controllers: [DocumentController]
 })
 export class DocumentModule { }

@@ -5,6 +5,7 @@ import { AiModule } from './ai/ai.module';
 import { ConfigModule } from '@nestjs/config';
 import { SupabaseModule } from './supabase/supabase.module';
 import { DocumentModule } from './document/document.module';
+import { AgentModule } from './agent/agent.module';
 
 @Module({
   imports: [
@@ -12,6 +13,7 @@ import { DocumentModule } from './document/document.module';
     AiModule,
     SupabaseModule,
     DocumentModule,
+    AgentModule,
   ],
   controllers: [AppController],
   providers: [AppService],

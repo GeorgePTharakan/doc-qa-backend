@@ -19,6 +19,20 @@ export class AiService {
         );
     }
 
+    async generate(systemPrompt: string, userMessage: string): Promise<string> {
+        const model = this.genAI.getGenerativeModel({
+            model: 'gemini-2.5-flash',
+            systemInstruction: systemPrompt,
+            generationConfig: {
+                temperature: 0.2,
+                responseMimeType: 'application/json'
+            },
+        });
+
+        const result = await model.generateContent(userMessage);
+        return result.response.text();
+    }
+
     async chat(userMessage: string, userDocument: string): Promise<string> {
         const model = this.genAI.getGenerativeModel({
             model: 'gemini-2.5-flash',   // fast and free tier friendly
